@@ -125,6 +125,10 @@ function callApi(protocol, host, req, res, body, session) {
     delete apiHeaders['x-redirect'];
   }
 
+  if (apiHeaders['x-pid']) {
+    delete apiHeaders['x-pid'];
+  }
+
   if (!apiHeaders['authorization-date'] || apiHeaders['date']) {
     var now = new Date();
     now = now.toGMTString();
