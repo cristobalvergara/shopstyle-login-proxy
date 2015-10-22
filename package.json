@@ -1,11 +1,16 @@
 {
   "name": "shopstyle-login-proxy",
   "version": "1.0.0",
-  "description": "",
+  "description": "This proxy server allows to make authenticated API requests against shopstyle and CMS API servers",
   "main": "index.js",
-  "scripts": {
-    "test": "mocha test"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cristobalvergara/shopstyle-login-proxy.git"
   },
+  "bugs": {
+    "url": "https://github.com/cristobalvergara/shopstyle-login-proxy.git/issues"
+  },
+  "homepage": "https://github.com/cristobalvergara/shopstyle-login-proxy.git#readme",
   "author": "Cristobal Vergara <cvergara@popsugar.com>",
   "license": "UNLICENSED",
   "dependencies": {
