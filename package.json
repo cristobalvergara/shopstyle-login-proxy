@@ -9,8 +9,8 @@
   "author": "Cristobal Vergara <cvergara@popsugar.com>",
   "license": "UNLICENSED",
   "dependencies": {
-    "q": "^1.4.1",
     "node-shopstyle-auth-digest-generator": "https://github.com/PopSugar/node-shopstyle-auth-digest-generator.git",
+    "q": "^1.4.1",
     "yargs": "^3.27.0"
   }
 }
