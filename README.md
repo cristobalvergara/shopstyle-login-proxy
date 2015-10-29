@@ -38,7 +38,7 @@ The *x-redirect* request header specifies the *protocol* (http or https), *usern
 curl -H "x-redirect: protocol://username:password@server" -H "content-type: application/json" 'localhost:6333/path?queryString'
 ```
 
-The *x-pid* header specifies the pid used for logging in to the server. Used only if a pid is not going to be provided in the request or if the pid for login is purposely intended to be different. Note that if the pid for login is different than the pid for the request, then the request will fail with 401. This header is used for testing requests where an error is expected. If no pid is found in the *x-pid* header or in the request, then *shopstyle* is used for the login request.
+The *x-pid* header specifies the pid used for logging in to the server. Used only if a pid is not going to be provided in the request to test or if the pid for login is purposely intended to be different. Note that if the pid for login is different than the pid for the request, then the request will fail with 401. This header is used for testing requests where an error is expected. If no pid is found in the *x-pid* header nor in the request, then *shopstyle* is used for the login request (the login request only, the real request is still sent as is).
 
 ```
 curl -H "x-redirect: https://cvergara:popsugar@api.shopstyleqa.com" -H "x-pid: iOS_app_v3" -H "content-type: application/json" 'localhost:6333/api/v2/shoppingProfiles?pid=iOS_app_v3'
