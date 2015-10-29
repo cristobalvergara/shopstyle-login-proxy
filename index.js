@@ -2,6 +2,7 @@ var http = require('http');
 var https = require('https');
 var argv = require('yargs')
   .argv;
+var url = require('url');
 var Q = require('q');
 var DigestGenerator = require('@popsugar/node-shopstyle-auth-digest-generator');
 var digestGenerator = new DigestGenerator();
@@ -20,18 +21,25 @@ server.listen(port, function(err) {
   console.log('Server running on port ' + port + '.');
 
   server.on('request', function(req, res) {
+    console.log("Request url: ", req.url);
+    var reqUrlObj = url.parse(req.url, true);
+
     res.on('error', function(e) {
       console.error('Failure while returning response: ' + e.toString());
     });
     var redirectHeader = req.headers['x-redirect'];
-    var pid = req.headers['x-pid'] || 'shopstyle';
+    if (!reqUrlObj.query) {
+      reqUrlObj.query = {};
+    }
+    var pid = req.headers['x-pid'] || reqUrlObj.query.pid ||
+      'shopstyle';
 
     var urlRegexp = /(.+):\/\/(.+):(.+)@(.+)$/;
     var urlRegexpResult = urlRegexp.exec(redirectHeader);
     if (!redirectHeader || !urlRegexpResult) {
       res.statusCode = 400;
       res.statusMessage =
-        'The "x-redirect" header was missing or had wrong format in the request. Example: x-redirect: https://cvergara:popsugar@www.shopstyle.com.';
+        'The "x-redirect" header was missing or had wrong format in the request. Example: x-redirect: https://cvergara:popsugar@api.shopstyle.com.';
       res.end();
 
       return;

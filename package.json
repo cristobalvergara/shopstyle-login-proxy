@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "This proxy server allows to make authenticated API requests against shopstyle and CMS API servers",
   "main": "index.js",
+  "scripts": {
+    "start": "node ."
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/cristobalvergara/shopstyle-login-proxy.git"
