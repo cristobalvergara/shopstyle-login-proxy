@@ -81,10 +81,7 @@ server.listen(port, function(err) {
           .then(function(result) {
             var responseBody = result.responseBody;
             var apiRes = result.apiRes;
-            res.writeHead(apiRes.statusCode, apiRes.statusMessage,
-              apiRes.headers);
-            res.write(responseBody);
-            res.end();
+            createResponse(res, apiRes, responseBody);
           })
           .catch(function(err) {
             if (err.statusCode === 401) {
@@ -95,6 +92,11 @@ server.listen(port, function(err) {
                   // Try again after refreshing the session
                   return callApi(protocol, host, req, body,
                       session)
+                    .then(function(result) {
+                      var responseBody = result.responseBody;
+                      var apiRes = result.apiRes;
+                      createResponse(res, apiRes, responseBody);
+                    })
                     .catch(function(err) {
                       // Give up
                       handleErrors(err, res);
@@ -110,6 +112,13 @@ server.listen(port, function(err) {
       });
   });
 });
+
+function createResponse(res, apiRes, body) {
+  res.writeHead(apiRes.statusCode, apiRes.statusMessage,
+    apiRes.headers);
+  res.write(body);
+  res.end();
+}
 
 function handleErrors(err, res) {
   console.error(err.toString());
@@ -137,14 +146,6 @@ function callApi(protocol, host, req, body, session) {
     delete apiHeaders['x-pid'];
   }
 
-  if (apiHeaders['accept-encoding']) {
-    delete apiHeaders['accept-encoding'];
-  }
-
-  if (apiHeaders['accept-language']) {
-    delete apiHeaders['accept-language'];
-  }
-
   apiHeaders.host = host;
 
   if (!apiHeaders['authorization-date'] || apiHeaders['date']) {
@@ -168,8 +169,10 @@ function callApi(protocol, host, req, body, session) {
     headers: apiHeaders
   };
 
-  var responseBody = "";
   var apiReq = requester.request(apiRequest, function(apiRes) {
+    var responseBody = new Buffer(parseInt(apiRes.headers['content-length']));
+    var offset = 0;
+
     apiRes.on('error', function(e) {
       console.error('Failure while reading response from API: ' + e.toString());
       throw e;
@@ -180,9 +183,11 @@ function callApi(protocol, host, req, body, session) {
       error.statusCode = apiRes.statusCode;
       defer.reject(error);
     }
-    apiRes.setEncoding('utf8');
     apiRes.on('data', function(data) {
-      responseBody += data;
+      for (var i = 0; i < data.length; i++) {
+        responseBody[offset + i] = data[i];
+      }
+      offset += data.length;
     });
     apiRes.on('end', function() {
       defer.resolve({
