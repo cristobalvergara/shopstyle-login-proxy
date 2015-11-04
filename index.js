@@ -77,7 +77,7 @@ server.listen(port, function(err) {
         var body = params.body;
         var session = params.session;
 
-        return callApi(protocol, host, req, res, body, session)
+        return callApi(protocol, host, req, body, session)
           .then(function(result) {
             var responseBody = result.responseBody;
             var apiRes = result.apiRes;
@@ -93,7 +93,7 @@ server.listen(port, function(err) {
                 .then(function(session) {
                   sessions[requestedSession] = session;
                   // Try again after refreshing the session
-                  return callApi(protocol, host, req, res, body,
+                  return callApi(protocol, host, req, body,
                       session)
                     .catch(function(err) {
                       // Give up
@@ -118,7 +118,7 @@ function handleErrors(err, res) {
   res.end();
 }
 
-function callApi(protocol, host, req, res, body, session) {
+function callApi(protocol, host, req, body, session) {
   var defer = Q.defer();
 
   var requester;
@@ -136,6 +136,16 @@ function callApi(protocol, host, req, res, body, session) {
   if (apiHeaders['x-pid']) {
     delete apiHeaders['x-pid'];
   }
+
+  if (apiHeaders['accept-encoding']) {
+    delete apiHeaders['accept-encoding'];
+  }
+
+  if (apiHeaders['accept-language']) {
+    delete apiHeaders['accept-language'];
+  }
+
+  apiHeaders.host = host;
 
   if (!apiHeaders['authorization-date'] || apiHeaders['date']) {
     var now = new Date();
