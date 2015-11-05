@@ -24,38 +24,65 @@ server.listen(port, function(err) {
     console.log("Request url: ", req.url);
     var reqUrlObj = url.parse(req.url, true);
 
-    res.on('error', function(e) {
-      console.error('Failure while returning response: ' + e.toString());
-    });
-    var redirectHeader = req.headers['x-redirect'];
     if (!reqUrlObj.query) {
       reqUrlObj.query = {};
     }
     var pid = req.headers['x-pid'] || reqUrlObj.query.pid ||
       'shopstyle';
 
-    var urlRegexp = /(.+):\/\/(.+):(.+)@(.+)$/;
-    var urlRegexpResult = urlRegexp.exec(redirectHeader);
-    if (!redirectHeader || !urlRegexpResult) {
+    res.on('error', function(e) {
+      console.error('Failure while returning response: ' + e.toString());
+    });
+    var loginHeader = req.headers['x-login'];
+
+    var auth, loginProtocol, username, password, loginHost;
+    try {
+      var loginUrlObj = url.parse(loginHeader);
+      auth = loginUrlObj.auth;
+
+      loginProtocol = loginUrlObj.protocol || "https:";
+      username = auth.split(':')[0];
+      password = auth.split(':')[1];
+      loginHost = loginUrlObj.host;
+      if (!loginHost) {
+        var error = new Error('Unable to parse host.');
+        error.type = 'host';
+        throw error;
+      }
+    } catch (e) {
       res.statusCode = 400;
       res.statusMessage =
-        'The "x-redirect" header was missing or had wrong format in the request. Example: x-redirect: https://cvergara:popsugar@api.shopstyle.com.';
+        'The "x-login" header was missing or had wrong format in the request. Example: x-login: https://cvergara:popsugar@api.shopstyle.com.';
+      if (e.type && e.type === 'host') {
+        res.statusMessage += " " + e.toString();
+      }
       res.end();
 
       return;
     }
 
-    var protocol = urlRegexpResult[1];
-    var username = urlRegexpResult[2];
-    var password = urlRegexpResult[3];
-    var host = urlRegexpResult[4];
+    var requestedSession = loginHeader + '?pid=' + pid;
 
-    var requestedSession = redirectHeader + '?pid=' + pid;
+    var redirectHeader = req.headers['x-redirect'];
+
+    if (!redirectHeader || !redirectHeader.length) {
+      res.statusCode = 400;
+      res.statusMessage =
+        'The "x-redirect" header was missing or had wrong format in the request. Example: x-redirect: https://api.shopstyle.com.';
+      res.end();
+
+      return;
+    }
+
+    var redirectUrlObj = url.parse(redirectHeader);
+    var redirectHost = redirectUrlObj.host;
+    var redirectProtocol = redirectUrlObj.protocol;
 
     parseReqBody(req)
       .then(function(body) {
         if (!sessions[requestedSession]) {
-          return callLogin(protocol, host, username, password,
+          return callLogin(loginProtocol, loginHost, username,
+              password,
               pid)
             .then(function(session) {
               sessions[requestedSession] = session;
@@ -77,20 +104,24 @@ server.listen(port, function(err) {
         var body = params.body;
         var session = params.session;
 
-        return callApi(protocol, host, req, body, session)
+        return callApi(redirectProtocol, redirectHost, req, body,
+            session)
           .then(function(result) {
             var responseBody = result.responseBody;
             var apiRes = result.apiRes;
             createResponse(res, apiRes, responseBody);
           })
           .catch(function(err) {
+            // If the session is expired
             if (err.statusCode === 401) {
-              callLogin(protocol, host, username,
+              callLogin(loginProtocol, loginHost, username,
                   password, pid)
                 .then(function(session) {
                   sessions[requestedSession] = session;
                   // Try again after refreshing the session
-                  return callApi(protocol, host, req, body,
+                  return callApi(redirectProtocol, redirectHost,
+                      req,
+                      body,
                       session)
                     .then(function(result) {
                       var responseBody = result.responseBody;
@@ -131,13 +162,17 @@ function callApi(protocol, host, req, body, session) {
   var defer = Q.defer();
 
   var requester;
-  if (protocol === 'https') {
+  if (protocol === 'https:') {
     requester = https;
   } else {
     requester = http;
   }
 
   var apiHeaders = req.headers;
+  if (apiHeaders['x-login']) {
+    delete apiHeaders['x-login'];
+  }
+
   if (apiHeaders['x-redirect']) {
     delete apiHeaders['x-redirect'];
   }
@@ -161,7 +196,7 @@ function callApi(protocol, host, req, body, session) {
   apiHeaders.authorization = authenticationToken;
 
   var apiRequest = {
-    protocol: protocol + ":",
+    protocol: protocol,
     host: host,
     method: req.method,
     path: req.url,

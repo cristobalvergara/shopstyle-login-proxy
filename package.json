@@ -20,5 +20,10 @@
     "node-shopstyle-auth-digest-generator": "https://github.com/PopSugar/node-shopstyle-auth-digest-generator.git",
     "q": "^1.4.1",
     "yargs": "^3.27.0"
+  },
+  "devDependencies": {
+    "chai": "^3.4.0",
+    "chai-as-promised": "^5.1.0",
+    "q-io": "^1.13.1"
   }
 }
