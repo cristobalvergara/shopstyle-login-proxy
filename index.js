@@ -8,6 +8,8 @@ var DigestGenerator = require('@popsugar/node-shopstyle-auth-digest-generator');
 var digestGenerator = new DigestGenerator();
 
 var port = argv.port || argv.p || 6333;
+var loginArg = argv.login;
+var redirectArg = argv.redirect;
 
 var sessions = {};
 
@@ -35,9 +37,11 @@ server.listen(port, function(err) {
     });
     var loginHeader = req.headers['x-login'];
 
+    var loginUrl = loginHeader || loginArg;
+
     var auth, loginProtocol, username, password, loginHost;
     try {
-      var loginUrlObj = url.parse(loginHeader);
+      var loginUrlObj = url.parse(loginUrl);
       auth = loginUrlObj.auth;
 
       loginProtocol = loginUrlObj.protocol || "https:";
@@ -52,7 +56,7 @@ server.listen(port, function(err) {
     } catch (e) {
       res.statusCode = 400;
       res.statusMessage =
-        'The "x-login" header was missing or had wrong format in the request. Example: x-login: https://cvergara:popsugar@api.shopstyle.com.';
+        'The --login argument was not specified and "x-login" header was missing or had wrong format. Example: x-login: https://cvergara:popsugar@api.shopstyle.com or start the server with --login "https://cvergara:popsugar@api.shopstyle.com".';
       if (e.type && e.type === 'host') {
         res.statusMessage += " " + e.toString();
       }
@@ -65,16 +69,18 @@ server.listen(port, function(err) {
 
     var redirectHeader = req.headers['x-redirect'];
 
-    if (!redirectHeader || !redirectHeader.length) {
+    var redirectUrl = redirectHeader || redirectArg;
+
+    if (!redirectUrl || !redirectUrl.length) {
       res.statusCode = 400;
       res.statusMessage =
-        'The "x-redirect" header was missing or had wrong format in the request. Example: x-redirect: https://api.shopstyle.com.';
+        'The --redirect argument was not specified and "x-redirect" header was missing or had wrong format in the request. Example: x-redirect: https://api.shopstyle.com or start the server with --redirect "https://api.shopstyle.com".';
       res.end();
 
       return;
     }
 
-    var redirectUrlObj = url.parse(redirectHeader);
+    var redirectUrlObj = url.parse(redirectUrl);
     var redirectHost = redirectUrlObj.host;
     var redirectProtocol = redirectUrlObj.protocol;
 
@@ -109,7 +115,7 @@ server.listen(port, function(err) {
           .then(function(result) {
             var responseBody = result.responseBody;
             var apiRes = result.apiRes;
-            createResponse(res, apiRes, responseBody);
+            createResponse(req, res, apiRes, responseBody);
           })
           .catch(function(err) {
             // If the session is expired
@@ -126,7 +132,8 @@ server.listen(port, function(err) {
                     .then(function(result) {
                       var responseBody = result.responseBody;
                       var apiRes = result.apiRes;
-                      createResponse(res, apiRes, responseBody);
+                      createResponse(req, res, apiRes,
+                        responseBody);
                     })
                     .catch(function(err) {
                       // Give up
@@ -144,7 +151,19 @@ server.listen(port, function(err) {
   });
 });
 
-function createResponse(res, apiRes, body) {
+function createResponse(req, res, apiRes, body) {
+  // Disable cors
+  var origin = req.headers['Origin'] || req.headers['origin'];
+
+  if (origin) {
+    apiRes.headers['access-control-allow-credentials'] = 'true';
+  } else {
+    origin = '*';
+  }
+
+  apiRes.headers['access-control-allow-origin'] = origin;
+  apiRes.headers['access-control-allow-methods'] =
+    "OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, CONNECT";
   res.writeHead(apiRes.statusCode, apiRes.statusMessage,
     apiRes.headers);
   res.write(body);
@@ -300,7 +319,12 @@ function callLogin(protocol, host, username, password, pid) {
       buffer += data;
     });
     loginRes.on('end', function() {
-      loginReqDefer.resolve(JSON.parse(buffer));
+      try {
+        var jsonResponse = JSON.parse(buffer);
+        loginReqDefer.resolve(jsonResponse);
+      } catch (e) {
+        loginReqDefer.reject(e);
+      }
     });
   });
 
